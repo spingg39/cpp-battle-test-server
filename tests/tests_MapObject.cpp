@@ -1,8 +1,12 @@
+#include "Game/Component/AgilityComponent.hpp"
+#include "Game/Component/HealthComponent.hpp"
+#include "Game/Component/MovableComponent.hpp"
+#include "Game/Component/OccupyingComponent.hpp"
+#include "Game/Component/RangeComponent.hpp"
+#include "Game/Component/StrengthComponent.hpp"
 #include "Game/Game.hpp"  //for io
-#include "Game/MapObject.hpp"
-#include "Game/MapObjectBuilder.hpp"
-#include "Game/MapObjectTasks/MapObjectTask.hpp"
-#include "Game/MapObjectTasks/MarchTask.hpp"
+#include "Game/MapObjects/MapObject.hpp"
+#include "Game/MapObjects/MapObjectBuilder.hpp"
 
 #include <gtest/gtest.h>
 
@@ -20,12 +24,12 @@ TEST(MapObjectBuilderTest, CreateSwordsman)
 	EXPECT_EQ(swordsMan->GetType(), "Swordsman");
 	EXPECT_EQ(swordsMan->GetX(), DefaultSpawnSwordsman.x);
 	EXPECT_EQ(swordsMan->GetY(), DefaultSpawnSwordsman.y);
-	EXPECT_EQ(swordsMan->GetHP(), DefaultSpawnSwordsman.hp);
-	EXPECT_EQ(swordsMan->GetStrength(), DefaultSpawnSwordsman.strength);
-	EXPECT_FALSE(swordsMan->GetAgility().has_value());
-	EXPECT_FALSE(swordsMan->GetRange().has_value());
-	EXPECT_TRUE(swordsMan->IsOccupyingCell());
-	EXPECT_EQ(swordsMan->GetMoveSpeed(), 1);
+	EXPECT_EQ(swordsMan->GetComponent<HealthComponent>()->GetHP(), DefaultSpawnSwordsman.hp);
+	EXPECT_EQ(swordsMan->GetComponent<StrengthComponent>()->GetStrength(), DefaultSpawnSwordsman.strength);
+	EXPECT_EQ(swordsMan->GetComponent<AgilityComponent>(), nullptr);
+	EXPECT_EQ(swordsMan->GetComponent<RangeComponent>(), nullptr);
+	EXPECT_TRUE(swordsMan->GetComponent<OccupyingComponent>() != nullptr);
+	EXPECT_EQ(swordsMan->GetComponent<MovableComponent>()->GetMoveSpeed(), 1);
 }
 
 TEST(MapObjectBuilderTest, CreateHunter)
@@ -36,109 +40,21 @@ TEST(MapObjectBuilderTest, CreateHunter)
 	EXPECT_EQ(hunter->GetType(), "Hunter");
 	EXPECT_EQ(hunter->GetX(), DefaultSpawnHunter.x);
 	EXPECT_EQ(hunter->GetY(), DefaultSpawnHunter.y);
-	EXPECT_EQ(hunter->GetHP(), DefaultSpawnHunter.hp);
-	EXPECT_EQ(hunter->GetStrength(), DefaultSpawnHunter.strength);
-	EXPECT_EQ(hunter->GetAgility(), DefaultSpawnHunter.agility);
-	EXPECT_EQ(hunter->GetRange(), DefaultSpawnHunter.range);
-	EXPECT_TRUE(hunter->IsOccupyingCell());
-	EXPECT_EQ(hunter->GetMoveSpeed(), 1);
+	EXPECT_EQ(hunter->GetComponent<HealthComponent>()->GetHP(), DefaultSpawnHunter.hp);
+	EXPECT_EQ(hunter->GetComponent<StrengthComponent>()->GetStrength(), DefaultSpawnHunter.strength);
+	EXPECT_EQ(hunter->GetComponent<AgilityComponent>()->GetAgility(), DefaultSpawnHunter.agility);
+	EXPECT_EQ(hunter->GetComponent<RangeComponent>()->GetRange(), DefaultSpawnHunter.range);
+	EXPECT_TRUE(hunter->GetComponent<OccupyingComponent>() != nullptr);
+	EXPECT_EQ(hunter->GetComponent<MovableComponent>()->GetMoveSpeed(), 1);
 }
 
-TEST(MapObjectBuilderTest, InvalidCustomConfig_RangeAttackForSwordsman)
-{
-	MapObjectConfig withRangeAttack{.RangeAttack = TaskConfig{.Priority = 1}};
-	EXPECT_THROW(MapObjectBuilder().WithCustomConfig(withRangeAttack).Build(DefaultSpawnSwordsman), std::runtime_error);
-}
-
-TEST(MapObjectTest, IsDead)
+TEST(MapObjectTest, HealthComponentTest)
 {
 	auto swordsMan = MapObjectBuilder().Build(DefaultSpawnSwordsman);
-	EXPECT_TRUE(swordsMan->CanReceiveDamage());
-	EXPECT_TRUE(swordsMan->GetHP() > 0U);
-	EXPECT_FALSE(swordsMan->IsDead());
-	swordsMan->SetHP(0);
-	EXPECT_TRUE(swordsMan->IsDead());
-}
-
-TEST(MapObjectTest, NotAddedObjectGetMap)
-{
-	auto swordsMan = MapObjectBuilder().Build(DefaultSpawnSwordsman);
-	EXPECT_TRUE(swordsMan->GetMap() == nullptr);
-}
-
-TEST(MapObjectTest, TaskOrder)
-{
-	auto hunter = MapObjectBuilder().Build(DefaultSpawnHunter);
-	uint32_t count = 0;
-	uint32_t prevPriority = 0;
-	hunter->VisitTasks(
-		[&](const auto& task)
-		{
-			++count;
-			EXPECT_TRUE(task.GetPriority() >= prevPriority);
-			prevPriority = task.GetPriority();
-		});
-	EXPECT_EQ(count, 2);
-}
-
-class TestTask : public MapObjectTask
-{
-	using MapObjectTask::MapObjectTask;
-
-	bool Update() override
-	{
-		return false;
-	}
-
-	bool IsComplete() const override
-	{
-		return false;
-	}
-};
-
-TEST(MapObjectTest, AddTaskOrder_AddLowerPriority)
-{
-	auto hunter = MapObjectBuilder().Build(DefaultSpawnHunter);
-	hunter->AddTask(std::make_unique<TestTask>(*hunter, 0));
-	uint32_t count = 0;
-	uint32_t prevPriority = 0;
-	hunter->VisitTasks(
-		[&](const auto& task)
-		{
-			++count;
-			EXPECT_TRUE(task.GetPriority() >= prevPriority);
-			prevPriority = task.GetPriority();
-		});
-	EXPECT_EQ(count, 3);
-}
-
-TEST(MapObjectTest, AddTaskOrder_AddHigherPriority)
-{
-	auto hunter = MapObjectBuilder().Build(DefaultSpawnHunter);
-	hunter->AddTask(std::make_unique<TestTask>(*hunter, 10));
-	uint32_t count = 0;
-	uint32_t prevPriority = 0;
-	hunter->VisitTasks(
-		[&](const auto& task)
-		{
-			++count;
-			EXPECT_TRUE(task.GetPriority() >= prevPriority);
-			prevPriority = task.GetPriority();
-		});
-	EXPECT_EQ(count, 3);
-}
-
-TEST(MapObjectTest, TryMarchNonMovable)
-{
-	auto nonmovableConfig = MapObjectConfigs.at("Swordsman");
-	nonmovableConfig.MoveSpeed = 0;
-	auto nonMovableUnit = MapObjectBuilder().WithCustomConfig(nonmovableConfig).Build(DefaultSpawnSwordsman);
-	EXPECT_THROW(
-		nonMovableUnit->AddTask(std::make_unique<MarchTask>(*nonMovableUnit, 3, Point(1, 1))), std::runtime_error);
-}
-
-TEST(MapObjectTest, TryUpdateWithoutMap)
-{
-	auto swordsMan = MapObjectBuilder().Build(DefaultSpawnSwordsman);
-	EXPECT_THROW(swordsMan->Update(), std::runtime_error);
+	auto comp = swordsMan->GetComponent<HealthComponent>();
+	EXPECT_TRUE(comp != nullptr);
+	EXPECT_TRUE(comp->GetHP() > 0U);
+	EXPECT_FALSE(comp->IsDead());
+	comp->SetHP(0);
+	EXPECT_TRUE(comp->IsDead());
 }

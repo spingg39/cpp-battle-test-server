@@ -1,7 +1,12 @@
 
+#include "Game/Component/AgilityComponent.hpp"
+#include "Game/Component/HealthComponent.hpp"
+#include "Game/Component/RangeComponent.hpp"
+#include "Game/Component/StrengthComponent.hpp"
 #include "Game/Game.hpp"
 #include "Game/Map.hpp"
-#include "Game/MapObjectBuilder.hpp"
+#include "Game/MapObjects/MapObject.hpp"
+#include "Game/MapObjects/MapObjectBuilder.hpp"
 
 #include <IO/System/EventLog.hpp>
 #include <gtest/gtest.h>
@@ -26,12 +31,12 @@ TEST(GameTest, InputCommand_SpawnUnit_Swordsman)
 	uint32_t y = 2;
 	game.AddInputCommand(io::SpawnSwordsman(1, x, y, 5, 2));
 	game.Update();
-	auto obj = game.GetMap()->GetObject(1);
+	auto obj = game.GetMapObject(1);
 	EXPECT_EQ(obj->GetId(), 1);
 	EXPECT_EQ(obj->GetX(), x);
 	EXPECT_EQ(obj->GetY(), y);
-	EXPECT_EQ(obj->GetHP(), 5);
-	EXPECT_EQ(obj->GetStrength(), 2);
+	EXPECT_EQ(obj->GetComponent<HealthComponent>()->GetHP(), 5);
+	EXPECT_EQ(obj->GetComponent<StrengthComponent>()->GetStrength(), 2);
 }
 
 TEST(GameTest, InputCommand_SpawnUnit_Hunter)
@@ -42,14 +47,14 @@ TEST(GameTest, InputCommand_SpawnUnit_Hunter)
 	uint32_t y = 0;
 	game.AddInputCommand(io::SpawnHunter(2, x, y, 10, 4, 1, 4));
 	game.Update();
-	auto obj = game.GetMap()->GetObject(2);
+	auto obj = game.GetMapObject(2);
 	EXPECT_EQ(obj->GetId(), 2);
 	EXPECT_EQ(obj->GetX(), x);
 	EXPECT_EQ(obj->GetY(), y);
-	EXPECT_EQ(obj->GetHP(), 10);
-	EXPECT_EQ(obj->GetAgility(), 4);
-	EXPECT_EQ(obj->GetStrength(), 1);
-	EXPECT_EQ(obj->GetRange(), 4);
+	EXPECT_EQ(obj->GetComponent<HealthComponent>()->GetHP(), 10);
+	EXPECT_EQ(obj->GetComponent<AgilityComponent>()->GetAgility(), 4);
+	EXPECT_EQ(obj->GetComponent<StrengthComponent>()->GetStrength(), 1);
+	EXPECT_EQ(obj->GetComponent<RangeComponent>()->GetRange(), 4);
 }
 
 TEST(GameTest, InputCommand_SpawnUnit_BeforeMapCreated)
@@ -68,7 +73,7 @@ TEST(GameTest, InputCommand_March)
 	game.AddInputCommand(io::SpawnSwordsman(1, x, y, 5, 2));
 	game.AddInputCommand(io::March(1, 9, 0));
 	game.Update();
-	auto obj = game.GetMap()->GetObject(1);
+	auto obj = game.GetMapObject(1);
 	EXPECT_EQ(obj->GetId(), 1);
 	EXPECT_EQ(obj->GetX(), x + 1);
 	EXPECT_EQ(obj->GetY(), y - 1);
@@ -158,8 +163,8 @@ TEST(GameTest, TestScenario_1)
 	{
 		game.Update();
 	}
-
-	EXPECT_EQ(EXPECTED, log.str());
+	auto res = log.str();
+	EXPECT_EQ(EXPECTED, res);
 }
 
 TEST(GameTest, TestScenario_2)

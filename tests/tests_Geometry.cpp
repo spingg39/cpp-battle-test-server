@@ -1,4 +1,4 @@
-#include "Game/Geometry/Utils.hpp"
+#include "Game/Utils/GeometryUtils.hpp"
 
 #include <gtest/gtest.h>
 #include <numeric>
