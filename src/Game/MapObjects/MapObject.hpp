@@ -36,20 +36,18 @@ namespace sw
 
 		virtual bool Update(IUpdateContext& context) = 0;
 
-		template <typename T, typename... Args>
+		template <IsComponent T, typename... Args>
 		T* AddComponent(Args&&... args)
 		{
-			static_assert(std::is_base_of<IComponent, T>::value, "T must derive from IComponent");
 			auto comp = std::make_unique<T>(std::forward<Args>(args)...);
 			T* rawPtr = comp.get();
 			m_Components[typeid(T)] = std::move(comp);
 			return rawPtr;
 		}
 
-		template <typename T>
+		template <IsComponent T>
 		T* GetComponent() const
 		{
-			static_assert(std::is_base_of<IComponent, T>::value, "T must derive from IComponent");
 			auto it = m_Components.find(typeid(T));
 			if (it != m_Components.end())
 			{
